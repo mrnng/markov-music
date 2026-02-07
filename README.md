@@ -14,10 +14,18 @@ The project is developed as part of a course assignment and focuses on:
 ## Planned Features
 
 - Input: an audio file in a supported format (MP3 for now), converted into note sequences using Spotify's Basic Pitch.
-- Output: predicted or generated musical phrases as MIDI, WAV, and MP3 files.
+- Output: predicted or generated musical phrases as MIDI and MP3 files.
 - Training using a personalized dataset
 - Evaluation of prediction quality
 - Mobile UI with support for audio playback and download
+
+## UML Sequence Diagram
+
+The following is the UML sequence diagram describing the prediction flow.
+It shows the user flow from upload and input to genre classification, model
+selection, prediction, and playback and export.
+
+![UML sequence diagram](./images/uml-sequence.png)
 
 ## Tech Stack (Planned)
 
