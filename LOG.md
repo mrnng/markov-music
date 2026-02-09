@@ -30,3 +30,7 @@ other folders, even if defined as packages.
 [07/02/2026 - 20:24] -AA  
 MIDI instruments have "program numbers" assigned by the General MIDI standard.
 This is what instrument.program returns in a PrettyMIDI object.
+
+[09/02/2026 - 17:30]YH
+react native demo barebones used expo command to run npx expo start
+used expo-av for audio
