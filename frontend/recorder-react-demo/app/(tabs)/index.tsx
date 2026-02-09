@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { Audio } from "expo-av";
-import { Alert, Text, FlatList, View } from "react-native";
+import {
+	Alert,
+	Text,
+	FlatList,
+	View,
+	TouchableWithoutFeedback,
+} from "react-native";
 import { Recording } from "expo-av/build/Audio";
 
 interface newRecording {
@@ -104,22 +110,26 @@ export default function Recorder() {
 	};
 	const renderRecordingItem = ({ item }: { item: newRecording }) => (
 		<View>
-			<button onClick={() => playRecording(item)}></button>
+			<TouchableWithoutFeedback onPress={() => playRecording(item)}>
+				<Text>play</Text>
+			</TouchableWithoutFeedback>
 		</View>
 	);
 	return (
 		<View>
 			<View>
 				<Text>record</Text>
-				<button onClick={toggleREC}>
-					{isRecording ? "Stop " : "Start"}
-				</button>
+				<TouchableWithoutFeedback onPress={toggleREC}>
+					<Text>{isRecording ? "Stop " : "Start"}</Text>
+				</TouchableWithoutFeedback>
 			</View>
 			<View>
 				{recordings.length === 0 ? (
 					<View>
 						<Text>No recordings yet</Text>
-						<Text>Tap the button above to start</Text>
+						<Text>
+							Tap the TouchableWithoutFeedback above to start
+						</Text>
 					</View>
 				) : (
 					<FlatList
