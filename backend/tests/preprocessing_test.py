@@ -1,5 +1,6 @@
 from pathlib import Path
-from processing.audio_to_midi import get_midi_data
+from processing.preprocessing import get_midi_data
+from processing.preprocessing import midi_to_model_format
 from pretty_midi import note_number_to_name
 
 AUDIO_FILEPATH = Path(__file__).parent / "c-major-scale.mp3"
@@ -10,3 +11,5 @@ for instrument in midi_data.instruments:
     print(f"Program: {instrument.program}")
     for note in instrument.notes:
         print(f"Note: {note_number_to_name(note.pitch)}, start: {note.start:.2f}s, end: {note.end:.2f}s, velocity: {note.velocity}")
+
+print(midi_to_model_format(midi_data))
