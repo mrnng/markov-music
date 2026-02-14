@@ -1,13 +1,9 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
+import { StyleSheet } from "react-native";
 import { Audio } from "expo-av";
-import {
-	Alert,
-	Text,
-	FlatList,
-	View,
-	TouchableWithoutFeedback,
-} from "react-native";
-import { Recording } from "expo-av/build/Audio";
+import { Ionicons } from "@expo/vector-icons";
+import EvilIcons from "@expo/vector-icons/EvilIcons";
+import { Alert, Text, FlatList, View, TouchableOpacity } from "react-native";
 
 interface newRecording {
 	// URI is to get the local path of the audio
@@ -21,7 +17,7 @@ export default function Recorder() {
 	const [recordings, setRecordings] = useState<newRecording[]>([]);
 	const [isRecording, setIsRecording] = useState(false);
 	const [sound, setSound] = useState<Audio.Sound | null>(null);
-	const [isPlayingID, setIsPlayingID] = useState<string | null>(null);
+	const [bars, setBars] = useState(1);
 
 	const requestPermissions = async () => {
 		//asks the user fo permissions and returns Premissionsresponse
@@ -33,12 +29,26 @@ export default function Recorder() {
 			);
 			return;
 		}
-
-		useEffect(() => {
-			return () => {
-				if (sound) sound.unloadAsync(); // this is to unload the memory
-			};
-		}, []);
+	};
+	useEffect(() => {
+		requestPermissions();
+		return () => {
+			if (sound) sound.unloadAsync(); // this is to unload the memory
+		};
+	}, []);
+	const decrement = () => {
+		if (bars == 1) {
+			setBars(1);
+		} else {
+			setBars(bars - 1);
+		}
+	};
+	const increment = () => {
+		if (bars == 12) {
+			setBars(12);
+		} else {
+			setBars(bars + 1);
+		}
 	};
 
 	const startREC = async () => {
@@ -80,6 +90,9 @@ export default function Recorder() {
 			Alert.alert("couldnt save the recording");
 		}
 	};
+	const deleteRecording = (id: string) => {
+		setRecordings((prev) => prev.filter((rec) => rec.id !== id));
+	};
 
 	const playRecording = async (REC: newRecording) => {
 		try {
@@ -87,7 +100,6 @@ export default function Recorder() {
 				await sound.stopAsync();
 				await sound.unloadAsync();
 				setSound(null);
-				setIsPlayingID(null);
 			}
 
 			const { sound: newSound } = await Audio.Sound.createAsync(
@@ -96,7 +108,6 @@ export default function Recorder() {
 			);
 
 			setSound(newSound);
-			setIsPlayingID(REC.id);
 		} catch (error) {
 			Alert.alert("failed to play ");
 		}
@@ -109,27 +120,65 @@ export default function Recorder() {
 		}
 	};
 	const renderRecordingItem = ({ item }: { item: newRecording }) => (
-		<View>
-			<TouchableWithoutFeedback onPress={() => playRecording(item)}>
-				<Text>play</Text>
-			</TouchableWithoutFeedback>
+		<View style={styles.playContainer}>
+			<TouchableOpacity onPress={() => playRecording(item)}>
+				<Text>
+					play id:{item.id} {item.duration}
+				</Text>
+			</TouchableOpacity>
+			<TouchableOpacity onPress={() => deleteRecording(item.id)}>
+				<EvilIcons name="trash" size={24} color="black" />
+			</TouchableOpacity>
 		</View>
 	);
 	return (
-		<View>
+		<View style={styles.container}>
 			<View>
-				<Text>record</Text>
-				<TouchableWithoutFeedback onPress={toggleREC}>
-					<Text>{isRecording ? "Stop " : "Start"}</Text>
-				</TouchableWithoutFeedback>
+				<TouchableOpacity onPress={toggleREC} style={styles.iconCircle}>
+					{isRecording ? (
+						<Ionicons
+							style={styles.musicIcon}
+							name="stop"
+							size={64}
+							color="#ccc"
+						/>
+					) : (
+						<Ionicons
+							style={styles.musicIcon}
+							name="musical-note"
+							size={64}
+							color="#ccc"
+						/>
+					)}
+				</TouchableOpacity>
 			</View>
+
+			<Text style={styles.barsLabel}>BARS</Text>
+
+			<View style={styles.counterContainer}>
+				<TouchableOpacity
+					style={styles.counterButton}
+					onPress={decrement}
+				>
+					<Text style={styles.counterButtonText}>-</Text>
+				</TouchableOpacity>
+
+				<View style={styles.numberDisplay}>
+					<Text style={styles.numberText}>{bars}</Text>
+				</View>
+
+				<TouchableOpacity
+					style={styles.counterButton}
+					onPress={increment}
+				>
+					<Text style={styles.counterButtonText}>+</Text>
+				</TouchableOpacity>
+			</View>
+			<Text style={styles.subtitle}>(1~12)</Text>
 			<View>
 				{recordings.length === 0 ? (
-					<View>
+					<View style={styles.subtitle}>
 						<Text>No recordings yet</Text>
-						<Text>
-							Tap the TouchableWithoutFeedback above to start
-						</Text>
 					</View>
 				) : (
 					<FlatList
@@ -137,9 +186,118 @@ export default function Recorder() {
 						renderItem={renderRecordingItem}
 						keyExtractor={(item) => item.id}
 						showsVerticalScrollIndicator={false}
+						style={styles.listContent}
 					/>
 				)}
 			</View>
+			<TouchableOpacity style={styles.generateButton}>
+				<Text style={styles.generateButtonText}>Genarate</Text>
+			</TouchableOpacity>
 		</View>
 	);
 }
+
+const styles = StyleSheet.create({
+	container: {
+		flex: 1,
+		backgroundColor: "#FFFFFF",
+		alignItems: "center",
+		paddingTop: 60,
+	},
+
+	iconCircle: {
+		width: 120,
+		height: 120,
+		borderRadius: 60,
+		backgroundColor: "#FFFFFF",
+		justifyContent: "center",
+		alignItems: "center",
+		shadowColor: "#000",
+		shadowOffset: { width: 4, height: 4 },
+		shadowOpacity: 0.1,
+		shadowRadius: 8,
+		elevation: 5,
+		marginBottom: 40,
+	},
+
+	musicIcon: {
+		fontSize: 40,
+		color: "#000000",
+	},
+
+	barsLabel: {
+		fontSize: 16,
+		fontWeight: "600",
+		color: "#000000",
+		letterSpacing: 2,
+		marginBottom: 8,
+	},
+
+	counterContainer: {
+		flexDirection: "row",
+		alignItems: "center",
+		marginBottom: 4,
+	},
+
+	counterButton: {
+		width: 32,
+		height: 32,
+		borderRadius: 16,
+		backgroundColor: "#000000",
+		justifyContent: "center",
+		alignItems: "center",
+	},
+
+	counterButtonText: {
+		color: "#FFFFFF",
+		fontSize: 20,
+		fontWeight: "bold",
+	},
+
+	numberDisplay: {
+		width: 80,
+		height: 40,
+		backgroundColor: "#F5F5F5",
+		borderRadius: 20,
+		justifyContent: "center",
+		alignItems: "center",
+		marginHorizontal: 20,
+	},
+
+	numberText: {
+		fontSize: 24,
+		fontWeight: "bold",
+		color: "#000000",
+	},
+
+	subtitle: {
+		fontSize: 12,
+		color: "#666666",
+		marginBottom: 60,
+	},
+
+	listContent: {
+		gap: 12,
+	},
+
+	generateButton: {
+		width: 200,
+		height: 48,
+		backgroundColor: "#000000",
+		borderRadius: 24,
+		justifyContent: "center",
+		alignItems: "center",
+	},
+
+	generateButtonText: {
+		color: "#FFFFFF",
+		fontSize: 16,
+		fontWeight: "600",
+		letterSpacing: 1,
+	},
+	playContainer: {
+		flexDirection: "row",
+		alignItems: "center",
+		marginBottom: 4,
+	},
+});
