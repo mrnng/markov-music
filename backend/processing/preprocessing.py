@@ -1,6 +1,6 @@
 import os
+import pretty_midi
 from basic_pitch.inference import predict
-from pretty_midi import note_number_to_name
 
 DURATION_TABLE = [
     (4.0, "whole"),
@@ -30,6 +30,13 @@ def quantize(time_in_quarters):
     return min(DURATION_TABLE, key=lambda x: abs(x[0] - time_in_quarters))
 
 def midi_to_model_format(midi_data):
+    """
+    Converts to the format used for the Markov model, which is:
+    {
+        tempo: float,
+        notes: [(name, duration)]
+    }
+    """
     model_format = {}
     tempo = midi_data.estimate_tempo()
     model_format["tempo"] = tempo
@@ -48,14 +55,42 @@ def midi_to_model_format(midi_data):
             durations.append(("rest", rest_name))
 
         note_length = note.end - note.start
-        _, note_name = quantize(note_length / quarter_in_seconds)
-        durations.append((note_number_to_name(note.pitch), note_name))
+        _, duration_name = quantize(note_length / quarter_in_seconds)
+        durations.append((pretty_midi.note_number_to_name(note.pitch), duration_name))
 
         current_time = max(current_time, note.end)
 
-    model_format["durations"] = durations
+    model_format["notes"] = durations
 
     return model_format
 
 def model_format_to_midi(model_format):
-    pass
+    """
+    Converts from the model format to a MIDI file
+    """
+    # a lookup table for duration names
+    durations_lut = {name: duration for duration, name in DURATION_TABLE}
+
+    pm = pretty_midi.PrettyMIDI()
+    program = pretty_midi.instrument_name_to_program("Acoustic Grand Piano")
+    instrument = pretty_midi.Instrument(program=program)
+
+    tempo = model_format["tempo"]
+    notes = model_format["notes"]
+    current_time = 0
+    for note_name, duration_name in notes:
+        delta_time = durations_lut[duration_name] / tempo * 60
+        if note_name != "rest":
+            note_number = pretty_midi.note_name_to_number(note_name)
+            note = pretty_midi.Note(
+                velocity=100,
+                pitch=note_number,
+                start=current_time,
+                end=current_time+delta_time
+            )
+            instrument.notes.append(note)
+        current_time += delta_time
+    
+    pm.instruments.append(instrument)
+
+    return pm
