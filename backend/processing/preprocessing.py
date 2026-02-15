@@ -112,3 +112,9 @@ def model_format_to_midi(model_format):
     pm.instruments.append(instrument)
 
     return pm
+
+def test_pipeline(audio_filepath):
+    midi_data = get_midi_data(audio_filepath)
+    model_format = midi_to_model_format(midi_data)
+    output_midi = model_format_to_midi(model_format)
+    return output_midi
