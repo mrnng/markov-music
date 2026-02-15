@@ -25,7 +25,7 @@ export default function Recorder() {
 		const { status } = await Audio.requestPermissionsAsync();
 		if (status !== "granted") {
 			Alert.alert(
-				"bruh its an audio recorder how would we record the audio with no mic ",
+				"You will not be able to use the recording features.",
 			);
 			return;
 		}
@@ -61,8 +61,8 @@ export default function Recorder() {
 			setRecording(recordingObject);
 			setIsRecording(true);
 		} catch (E) {
-			console.error("no happon record there is probrem", E);
-			Alert.alert("ERROR COULDNT RECORED");
+			console.error("Error while recording audio.", E);
+			Alert.alert("Error while recording audio.");
 		}
 	};
 
@@ -86,8 +86,8 @@ export default function Recorder() {
 
 			setRecording(null);
 		} catch (E) {
-			console.error("RECORDING OVERLOADDDD AHHHHHHHHHH", E);
-			Alert.alert("couldnt save the recording");
+			console.error("Could not save the recording.", E);
+			Alert.alert("Could not save the recording.");
 		}
 	};
 	const deleteRecording = (id: string) => {
@@ -109,7 +109,7 @@ export default function Recorder() {
 
 			setSound(newSound);
 		} catch (error) {
-			Alert.alert("failed to play ");
+			Alert.alert("Failed to play recording.");
 		}
 	};
 	const toggleREC = () => {
