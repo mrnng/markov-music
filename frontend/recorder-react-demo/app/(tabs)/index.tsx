@@ -1,11 +1,21 @@
 import React, { useEffect, useState } from "react";
 import { StyleSheet } from "react-native";
-import { Audio } from "expo-av";
+import {
+	RecordingPresets,
+	AudioModule,
+	useAudioPlayer,
+	useAudioRecorder,
+	useAudioRecorderState,
+	setAudioModeAsync,
+	useAudioPlayerStatus,
+} from "expo-audio";
 import { Ionicons } from "@expo/vector-icons";
+import AntDesign from "@expo/vector-icons/AntDesign";
 import EvilIcons from "@expo/vector-icons/EvilIcons";
 import { Alert, Text, FlatList, View, TouchableOpacity } from "react-native";
+import * as DocumentPicker from "expo-document-picker";
 
-interface newRecording {
+interface Recording {
 	// URI is to get the local path of the audio
 	id: string;
 	URI: string;
@@ -13,29 +23,31 @@ interface newRecording {
 }
 
 export default function Recorder() {
-	const [recording, setRecording] = useState<Audio.Recording | null>(null);
-	const [recordings, setRecordings] = useState<newRecording[]>([]);
+	const [recording, setRecording] = useState<Recording | null>(null);
 	const [isRecording, setIsRecording] = useState(false);
-	const [sound, setSound] = useState<Audio.Sound | null>(null);
 	const [bars, setBars] = useState(1);
+	const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+	const player = useAudioPlayer(recording?.URI);
+	const recorderState = useAudioRecorderState(audioRecorder);
+	const playerStatus = useAudioPlayerStatus(player);
 
 	const requestPermissions = async () => {
 		//asks the user fo permissions and returns Premissionsresponse
 		//it has  status and status is either granted , undetermined pr denied
-		const { status } = await Audio.requestPermissionsAsync();
+		const { status } = await AudioModule.requestRecordingPermissionsAsync();
 		if (status !== "granted") {
-			Alert.alert(
-				"You will not be able to use the recording features.",
-			);
+			Alert.alert("You will not be able to use the recording features.");
 			return;
 		}
+		setAudioModeAsync({
+			playsInSilentMode: true,
+			allowsRecording: true,
+		});
 	};
 	useEffect(() => {
 		requestPermissions();
-		return () => {
-			if (sound) sound.unloadAsync(); // this is to unload the memory
-		};
 	}, []);
+
 	const decrement = () => {
 		if (bars == 1) {
 			setBars(1);
@@ -54,11 +66,8 @@ export default function Recorder() {
 	const startREC = async () => {
 		try {
 			// i just got this from the example on createAsync it should let us record
-			const { recording: recordingObject, status } =
-				await Audio.Recording.createAsync(
-					Audio.RecordingOptionsPresets.HIGH_QUALITY,
-				);
-			setRecording(recordingObject);
+			await audioRecorder.prepareToRecordAsync();
+			audioRecorder.record();
 			setIsRecording(true);
 		} catch (E) {
 			console.error("Error while recording audio.", E);
@@ -67,50 +76,61 @@ export default function Recorder() {
 	};
 
 	const stopREC = async () => {
-		if (!recording) return;
 		try {
 			setIsRecording(false);
-
-			const status = await recording.stopAndUnloadAsync();
-			const URI = recording.getURI();
-			const duration = status.durationMillis;
-
-			if (URI) {
-				const newRecording: newRecording = {
+			await audioRecorder.stop();
+			if (audioRecorder.uri) {
+				const newRecording: Recording = {
 					id: Date.now().toString(),
-					URI,
-					duration: duration,
+					URI: audioRecorder.uri,
+					duration: Math.round(recorderState.durationMillis / 1000),
 				};
-				setRecordings((prev) => [newRecording, ...prev]);
+				setRecording(newRecording);
 			}
-
-			setRecording(null);
 		} catch (E) {
 			console.error("Could not save the recording.", E);
 			Alert.alert("Could not save the recording.");
 		}
 	};
-	const deleteRecording = (id: string) => {
-		setRecordings((prev) => prev.filter((rec) => rec.id !== id));
+	const deleteRecording = () => {
+		if (playerStatus.playing) stopPlaying();
+		setRecording(null);
+	};
+	//get the file
+	const getDocument = async () => {
+		try {
+			const result = await DocumentPicker.getDocumentAsync({
+				type: "audio/*",
+			});
+
+			if (result.canceled) return;
+			deleteRecording();
+
+			const file = result.assets[0];
+			const newRecording: Recording = {
+				id: file.name,
+				URI: file.uri,
+				duration: 0,
+			};
+			setRecording(newRecording);
+		} catch (error) {
+			Alert.alert("failed to load file");
+		}
 	};
 
-	const playRecording = async (REC: newRecording) => {
+	const playRecording = () => {
 		try {
-			if (sound) {
-				await sound.stopAsync();
-				await sound.unloadAsync();
-				setSound(null);
-			}
-
-			const { sound: newSound } = await Audio.Sound.createAsync(
-				{ uri: REC.URI },
-				{ shouldPlay: true },
-			);
-
-			setSound(newSound);
+			if (playerStatus.currentTime == playerStatus.duration)
+				player.seekTo(0);
+			player.play();
 		} catch (error) {
 			Alert.alert("Failed to play recording.");
 		}
+	};
+	const stopPlaying = () => {
+		try {
+			player.pause();
+		} catch (error) {}
 	};
 	const toggleREC = () => {
 		if (isRecording) {
@@ -119,41 +139,85 @@ export default function Recorder() {
 			startREC();
 		}
 	};
-	const renderRecordingItem = ({ item }: { item: newRecording }) => (
-		<View style={styles.playContainer}>
-			<TouchableOpacity onPress={() => playRecording(item)}>
-				<Text>
-					play id:{item.id} {item.duration}
-				</Text>
-			</TouchableOpacity>
-			<TouchableOpacity onPress={() => deleteRecording(item.id)}>
-				<EvilIcons name="trash" size={24} color="black" />
-			</TouchableOpacity>
-		</View>
-	);
+	const togglePlay = () => {
+		if (playerStatus.playing) {
+			stopPlaying();
+		} else {
+			playRecording();
+		}
+	};
+
 	return (
 		<View style={styles.container}>
+			{recording ? <Text>{recording.id}</Text> : <></>}
 			<View>
-				<TouchableOpacity onPress={toggleREC} style={styles.iconCircle}>
-					{isRecording ? (
-						<Ionicons
-							style={styles.musicIcon}
-							name="stop"
-							size={64}
-							color="#ccc"
-						/>
-					) : (
-						<Ionicons
-							style={styles.musicIcon}
-							name="musical-note"
-							size={64}
-							color="#ccc"
-						/>
-					)}
+				{recording === null ? (
+					// no recording found so record
+					<TouchableOpacity
+						onPress={toggleREC}
+						style={styles.iconCircle}
+					>
+						{isRecording ? (
+							<Ionicons
+								style={styles.musicIcon}
+								name="stop"
+								size={64}
+								color="#ccc"
+							/>
+						) : (
+							<Ionicons
+								style={styles.musicIcon}
+								name="mic"
+								size={64}
+								color="#ccc"
+							/>
+						)}
+					</TouchableOpacity>
+				) : (
+					// there is recording so play
+					<View style={styles.playdel}>
+						<TouchableOpacity
+							onPress={togglePlay}
+							style={styles.iconCircle}
+						>
+							{playerStatus.playing ? (
+								<Ionicons
+									style={styles.musicIcon}
+									name="pause"
+									size={64}
+									color="#ccc"
+								/>
+							) : (
+								<Ionicons
+									style={styles.musicIcon}
+									name="play"
+									size={64}
+									color="#ccc"
+								/>
+							)}
+						</TouchableOpacity>
+						<TouchableOpacity onPress={deleteRecording}>
+							<EvilIcons
+								style={styles.musicIcon}
+								name="trash"
+								size={64}
+								color="#ccc"
+							/>
+						</TouchableOpacity>
+					</View>
+				)}
+			</View>
+			<View style={styles.counterContainer}>
+				<Text style={styles.barsLabel}>Upload file instead:</Text>
+				<TouchableOpacity
+					style={styles.fileButton}
+					onPress={getDocument}
+				>
+					<AntDesign name="file-add" size={20} color="black" />
 				</TouchableOpacity>
 			</View>
 
-			<Text style={styles.barsLabel}>BARS</Text>
+			<Text style={styles.barsLabel}>Number of Bars</Text>
 
 			<View style={styles.counterContainer}>
 				<TouchableOpacity
@@ -175,21 +239,6 @@ export default function Recorder() {
 				</TouchableOpacity>
 			</View>
 			<Text style={styles.subtitle}>(1~12)</Text>
-			<View>
-				{recordings.length === 0 ? (
-					<View style={styles.subtitle}>
-						<Text>No recordings yet</Text>
-					</View>
-				) : (
-					<FlatList
-						data={recordings}
-						renderItem={renderRecordingItem}
-						keyExtractor={(item) => item.id}
-						showsVerticalScrollIndicator={false}
-						style={styles.listContent}
-					/>
-				)}
-			</View>
 			<TouchableOpacity style={styles.generateButton}>
 				<Text style={styles.generateButtonText}>Genarate</Text>
 			</TouchableOpacity>
@@ -225,6 +274,10 @@ const styles = StyleSheet.create({
 		color: "#000000",
 	},
 
+	playdel: {
+		flexDirection: "row",
+	},
+
 	barsLabel: {
 		fontSize: 16,
 		fontWeight: "600",
@@ -234,15 +287,16 @@ const styles = StyleSheet.create({
 	},
 
 	counterContainer: {
+		display: "flex",
 		flexDirection: "row",
 		alignItems: "center",
-		marginBottom: 4,
+		marginBottom: 8,
 	},
 
 	counterButton: {
 		width: 32,
 		height: 32,
-		borderRadius: 16,
+		borderRadius: 12,
 		backgroundColor: "#000000",
 		justifyContent: "center",
 		alignItems: "center",
@@ -250,7 +304,7 @@ const styles = StyleSheet.create({
 
 	counterButtonText: {
 		color: "#FFFFFF",
-		fontSize: 20,
+		fontSize: 40,
 		fontWeight: "bold",
 	},
 
@@ -258,7 +312,7 @@ const styles = StyleSheet.create({
 		width: 80,
 		height: 40,
 		backgroundColor: "#F5F5F5",
-		borderRadius: 20,
+		borderRadius: 12,
 		justifyContent: "center",
 		alignItems: "center",
 		marginHorizontal: 20,
@@ -269,6 +323,14 @@ const styles = StyleSheet.create({
 		fontWeight: "bold",
 		color: "#000000",
 	},
+	fileButton: {
+		width: 20,
+		height: 20,
+		borderRadius: 12,
+		backgroundColor: "#FFFFFF",
+		justifyContent: "center",
+		alignItems: "center",
+	},
 
 	subtitle: {
 		fontSize: 12,
@@ -276,17 +338,18 @@ const styles = StyleSheet.create({
 		marginBottom: 60,
 	},
 
-	listContent: {
-		gap: 12,
-	},
-
 	generateButton: {
 		width: 200,
 		height: 48,
 		backgroundColor: "#000000",
-		borderRadius: 24,
+		borderRadius: 12,
 		justifyContent: "center",
 		alignItems: "center",
+		shadowColor: "#000",
+		shadowOffset: { width: 2, height: 2 },
+		shadowOpacity: 0.3,
+		shadowRadius: 8,
+		elevation: 5,
 	},
 
 	generateButtonText: {
@@ -294,10 +357,5 @@ const styles = StyleSheet.create({
 		fontSize: 16,
 		fontWeight: "600",
 		letterSpacing: 1,
-	},
-	playContainer: {
-		flexDirection: "row",
-		alignItems: "center",
-		marginBottom: 4,
 	},
 });
