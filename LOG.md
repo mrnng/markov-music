@@ -34,3 +34,7 @@ This is what instrument.program returns in a PrettyMIDI object.
 [09/02/2026 - 17:30]YH
 react native demo barebones used expo command to run npx expo start
 used expo-av for audio
+
+[15/02/2026 - 12:37] -AA
+Sometimes, Basic Pitch picks up on octaves that aren't there in the recording,
+so I had to filter them out.

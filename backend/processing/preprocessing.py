@@ -48,7 +48,24 @@ def midi_to_model_format(midi_data):
 
     durations = []
     current_time = notes[0].start
-    for note in notes:
+
+    # sometimes, audio picks up an extra octave sound not present
+    # in the original recording, which we will filter
+    filtered_notes = []
+    i = 0
+    while i < len(notes) - 1:
+        if abs(notes[i].start - notes[i+1].start) < 0.1:
+            note_i = pretty_midi.note_number_to_name(notes[i].pitch)
+            note_j = pretty_midi.note_number_to_name(notes[i+1].pitch)
+            if note_i[:-1] == note_j[:-1]:
+                note_to_keep = i if int(note_i[-1]) < int(note_j[-1]) else i + 1
+                filtered_notes.append(notes[note_to_keep])
+                i += 2
+                continue
+        filtered_notes.append(notes[i])
+        i += 1
+
+    for note in filtered_notes:
         rest_length = note.start - current_time
         if rest_length >= quarter_in_seconds:
             _, rest_name = quantize(rest_length / quarter_in_seconds)
@@ -56,7 +73,8 @@ def midi_to_model_format(midi_data):
 
         note_length = note.end - note.start
         _, duration_name = quantize(note_length / quarter_in_seconds)
-        durations.append((pretty_midi.note_number_to_name(note.pitch), duration_name))
+        note_name = pretty_midi.note_number_to_name(note.pitch)
+        durations.append((note_name, duration_name))
 
         current_time = max(current_time, note.end)
 
@@ -83,7 +101,7 @@ def model_format_to_midi(model_format):
         if note_name != "rest":
             note_number = pretty_midi.note_name_to_number(note_name)
             note = pretty_midi.Note(
-                velocity=100,
+                velocity=50,
                 pitch=note_number,
                 start=current_time,
                 end=current_time+delta_time
