@@ -38,3 +38,12 @@ used expo-av for audio
 [15/02/2026 - 12:37] -AA
 Sometimes, Basic Pitch picks up on octaves that aren't there in the recording,
 so I had to filter them out.
+
+[15/02/2026 = 19:46] -AA
+Backend works. To test it, run
+`curl -X POST http://localhost:5000/generate -F "file=@piano-recording.m4a" -o "generated.mid"`
+on Linux. It should create and save a generated.mid file which works as expected.
+To run the server, use `flask --app main run` from the /backend folder.
+
+While the as_attachment=True forces the browser to download the file, it might
+not be automatic on React Native.
