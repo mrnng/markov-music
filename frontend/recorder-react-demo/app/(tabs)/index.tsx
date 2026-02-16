@@ -148,8 +148,26 @@ export default function Recorder() {
 	};
 
 	return (
-		<View style={styles.container}>
-			{recording ? <Text>{recording.id}</Text> : <></>}
+        <View style={styles.container}>
+            <View style={styles.fileRow}>
+                <Text
+                    style={[
+                        styles.fileName,
+                        !recording && styles.placeholderText
+                    ]}
+                >
+                    {recording ? recording.id : "No file uploaded"}
+                </Text>
+
+                {recording && (
+                    <TouchableOpacity
+                    onPress={deleteRecording}
+                    style={styles.deleteButton}>
+                        <Ionicons name="backspace" size={24} color="#000" />
+                    </TouchableOpacity>
+                )}
+        </View>
+
 			<View>
 				{recording === null ? (
 					// no recording found so record
@@ -167,14 +185,14 @@ export default function Recorder() {
 						) : (
 							<Ionicons
 								style={styles.musicIcon}
-								name="mic"
+								name="mic-outline"
 								size={64}
 								color="#ccc"
 							/>
 						)}
 					</TouchableOpacity>
 				) : (
-					// there is recording so play
+					// there is a recording so play
 					<View style={styles.playdel}>
 						<TouchableOpacity
 							onPress={togglePlay}
@@ -196,35 +214,27 @@ export default function Recorder() {
 								/>
 							)}
 						</TouchableOpacity>
-						<TouchableOpacity onPress={deleteRecording}>
-							<EvilIcons
-								style={styles.musicIcon}
-								name="trash"
-								size={64}
-								color="#ccc"
-							/>
-						</TouchableOpacity>
 					</View>
 				)}
 			</View>
-			<View style={styles.counterContainer}>
-				<Text style={styles.barsLabel}>Upload file instead:</Text>
+			<View style={styles.uploadFileContainer}>
+				<Text style={styles.uploadFileText}>Upload file instead:</Text>
 				<TouchableOpacity
-					style={styles.fileButton}
+					style={styles.uploadFileButton}
 					onPress={getDocument}
 				>
-					<AntDesign name="file-add" size={20} color="black" />
+					<AntDesign name="file-add" size={24} color="black" />
 				</TouchableOpacity>
 			</View>
 
-			<Text style={styles.barsLabel}>Number of Bars</Text>
+			<Text style={styles.barsLabel}>Number of bars to generate:</Text>
 
 			<View style={styles.counterContainer}>
 				<TouchableOpacity
 					style={styles.counterButton}
 					onPress={decrement}
 				>
-					<Text style={styles.counterButtonText}>-</Text>
+					<Ionicons name="remove" size={24} color="white"/>
 				</TouchableOpacity>
 
 				<View style={styles.numberDisplay}>
@@ -235,12 +245,12 @@ export default function Recorder() {
 					style={styles.counterButton}
 					onPress={increment}
 				>
-					<Text style={styles.counterButtonText}>+</Text>
+					<Ionicons name="add" size={24} color="white"/>
 				</TouchableOpacity>
 			</View>
-			<Text style={styles.subtitle}>(1~12)</Text>
+			<Text style={styles.subtitle}>(1 ~ 12)</Text>
 			<TouchableOpacity style={styles.generateButton}>
-				<Text style={styles.generateButtonText}>Genarate</Text>
+				<Text style={styles.generateButtonText}>Generate</Text>
 			</TouchableOpacity>
 		</View>
 	);
@@ -254,36 +264,75 @@ const styles = StyleSheet.create({
 		paddingTop: 60,
 	},
 
+    fileRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        height: 40,
+        marginBottom: 20,
+    },
+
+    fileName: {
+        fontSize: 16,
+        color: "#000",
+    },
+
+    deleteButton: {
+        marginLeft: 12,
+        justifyContent: "center",
+        // paddingBottom: 2,
+    },
+
+    placeholderText: {
+        color: "#999",
+    },
+
 	iconCircle: {
 		width: 120,
 		height: 120,
 		borderRadius: 60,
-		backgroundColor: "#FFFFFF",
+        borderWidth: 1,
+        borderColor: "#00000080",
+		backgroundColor: "#fdfbfb",
 		justifyContent: "center",
 		alignItems: "center",
 		shadowColor: "#000",
-		shadowOffset: { width: 4, height: 4 },
-		shadowOpacity: 0.1,
-		shadowRadius: 8,
+		shadowOffset: { width: 0, height: 4 },
+		shadowOpacity: 0.2,
+		shadowRadius: 3,
 		elevation: 5,
 		marginBottom: 40,
 	},
 
 	musicIcon: {
-		fontSize: 40,
-		color: "#000000",
+		fontSize: 50,
+		color: "#1d1c1c",
+        transform: [{scaleY: 1.1}],
 	},
 
 	playdel: {
 		flexDirection: "row",
 	},
 
+    uploadFileContainer : {
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+        marginBottom: 30,
+    },
+
+    uploadFileText: {
+        fontSize: 14,
+    },
+
+    uploadFileButton: {},
+
 	barsLabel: {
-		fontSize: 16,
-		fontWeight: "600",
+		fontSize: 14,
+		fontWeight: "400",
 		color: "#000000",
-		letterSpacing: 2,
-		marginBottom: 8,
+		marginBottom: 10,
 	},
 
 	counterContainer: {
@@ -291,13 +340,14 @@ const styles = StyleSheet.create({
 		flexDirection: "row",
 		alignItems: "center",
 		marginBottom: 8,
+        gap: 12,
 	},
 
 	counterButton: {
-		width: 32,
-		height: 32,
+		width: 50,
+		height: 50,
 		borderRadius: 12,
-		backgroundColor: "#000000",
+		backgroundColor: "#1E1E1E",
 		justifyContent: "center",
 		alignItems: "center",
 	},
@@ -309,13 +359,19 @@ const styles = StyleSheet.create({
 	},
 
 	numberDisplay: {
-		width: 80,
-		height: 40,
-		backgroundColor: "#F5F5F5",
+		width: 100,
+		height: 50,
+		borderWidth: 1,
+        borderColor: "#00000080",
+		backgroundColor: "#fdfbfb",
 		borderRadius: 12,
 		justifyContent: "center",
 		alignItems: "center",
-		marginHorizontal: 20,
+        shadowColor: "#000",
+		shadowOffset: { width: 0, height: 4 },
+		shadowOpacity: 0.2,
+		shadowRadius: 3,
+		elevation: 5,
 	},
 
 	numberText: {
@@ -323,6 +379,7 @@ const styles = StyleSheet.create({
 		fontWeight: "bold",
 		color: "#000000",
 	},
+
 	fileButton: {
 		width: 20,
 		height: 20,
@@ -339,16 +396,16 @@ const styles = StyleSheet.create({
 	},
 
 	generateButton: {
-		width: 200,
-		height: 48,
-		backgroundColor: "#000000",
+		width: 180,
+		height: 60,
+		backgroundColor: "#1E1E1E",
 		borderRadius: 12,
 		justifyContent: "center",
 		alignItems: "center",
 		shadowColor: "#000",
-		shadowOffset: { width: 2, height: 2 },
-		shadowOpacity: 0.3,
-		shadowRadius: 8,
+		shadowOffset: { width: 0, height: 4 },
+		shadowOpacity: 0.2,
+		shadowRadius: 3,
 		elevation: 5,
 	},
 
@@ -356,6 +413,5 @@ const styles = StyleSheet.create({
 		color: "#FFFFFF",
 		fontSize: 16,
 		fontWeight: "600",
-		letterSpacing: 1,
 	},
 });
