@@ -51,3 +51,6 @@ not be automatic on React Native.
 [21/02/2026 - 10:54] -AA
 EXTREMELY IMPORTANT: do NOT update setuptools, as some packages use a deprecated
 feature. Use version 69.5.1 at most.
+When installing packages with pip, Python will create a build isolation environment
+and then mess up the setuptools again, so run the following command instead:
+`python -m pip install --no-build-isolation packagename`
