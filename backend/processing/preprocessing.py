@@ -1,17 +1,9 @@
+# TODO:
+# add key detection and convert notes in the model_format to scale degrees
+
 import os
 import pretty_midi
 from basic_pitch.inference import predict
-
-DURATION_TABLE = [
-    (4.0, "whole"),
-    (2.0, "half"),
-    (1.0, "quarter"),
-    (0.5, "eighth"),
-    (0.333, "quarter-triplet"),
-    (0.25, "sixteenth"),
-    (0.1667, "eighth-triplet"),
-    (0.125, "thirty-second"),
-]
 
 def get_midi_data(audio_filepath):
     """
@@ -23,31 +15,24 @@ def get_midi_data(audio_filepath):
     _, midi_data, _ = predict(audio_filepath)
     return midi_data
 
-def quantize(time_in_quarters):
-    """
-    Helper function that returns the nearest name for a duration
-    """
-    return min(DURATION_TABLE, key=lambda x: abs(x[0] - time_in_quarters))
-
 def midi_to_model_format(midi_data):
     """
     Converts to the format used for the Markov model, which is:
     {
         tempo: float,
-        notes: [(name, duration)]
+        notes: [(pitch, duration)]
     }
     """
     model_format = {}
     tempo = midi_data.estimate_tempo()
     model_format["tempo"] = tempo
     quarter_in_seconds = 60 / tempo
+    # we divide by 4 because we're on a 16th note grid
+    step_duration = quarter_in_seconds / 4
     # extract the main instrument, which is the one with most notes
     # our audio files will be monophonic, so this should always work
     main_instrument = max(midi_data.instruments, key=lambda i: len(i.notes))
     notes = sorted(main_instrument.notes, key=lambda n: n.start)
-
-    durations = []
-    current_time = notes[0].start
 
     # sometimes, audio picks up an extra octave sound not present
     # in the original recording, which we will filter
@@ -65,20 +50,25 @@ def midi_to_model_format(midi_data):
         filtered_notes.append(notes[i])
         i += 1
 
+    # if there are no notes, avoid crashing
+    if len(filtered_notes) == 0:
+        model_format["notes"] = []
+        return model_format
+
+    # this is the actual note to format step
+    events = []
+    current_time = round(filtered_notes[0].start / step_duration) * step_duration
+
+    # this is the actual note to format step
     for note in filtered_notes:
-        rest_length = note.start - current_time
-        if rest_length >= quarter_in_seconds:
-            _, rest_name = quantize(rest_length / quarter_in_seconds)
-            durations.append(("rest", rest_name))
+        rest_steps = max(0, round((note.start - current_time) / step_duration))
+        if rest_steps > 0:
+            events.append((0, rest_steps))
+        duration_steps = max(1, round((note.end - note.start) / step_duration))
+        events.append((note.pitch, duration_steps))
+        current_time = note.start + duration_steps * step_duration
 
-        note_length = note.end - note.start
-        _, duration_name = quantize(note_length / quarter_in_seconds)
-        note_name = pretty_midi.note_number_to_name(note.pitch)
-        durations.append((note_name, duration_name))
-
-        current_time = max(current_time, note.end)
-
-    model_format["notes"] = durations
+    model_format["notes"] = events
 
     return model_format
 
@@ -86,8 +76,6 @@ def model_format_to_midi(model_format):
     """
     Converts from the model format to a MIDI file
     """
-    # a lookup table for duration names
-    durations_lut = {name: duration for duration, name in DURATION_TABLE}
 
     pm = pretty_midi.PrettyMIDI()
     program = pretty_midi.instrument_name_to_program("Acoustic Grand Piano")
@@ -96,13 +84,12 @@ def model_format_to_midi(model_format):
     tempo = model_format["tempo"]
     notes = model_format["notes"]
     current_time = 0
-    for note_name, duration_name in notes:
-        delta_time = durations_lut[duration_name] / tempo * 60
-        if note_name != "rest":
-            note_number = pretty_midi.note_name_to_number(note_name)
+    for pitch, duration in notes:
+        delta_time = (duration / 4) / tempo * 60
+        if pitch != 0:
             note = pretty_midi.Note(
                 velocity=50,
-                pitch=note_number,
+                pitch=pitch,
                 start=current_time,
                 end=current_time+delta_time
             )
