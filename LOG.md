@@ -54,3 +54,16 @@ feature. Use version 69.5.1 at most.
 When installing packages with pip, Python will create a build isolation environment
 and then mess up the setuptools again, so run the following command instead:
 `python -m pip install --no-build-isolation packagename`
+
+[22/02/2026 - 10:17] -AA
+I found a dataset in the form of TFRecords. They are sequences of notes,
+with an encoding where the numbers 128 and 129 are possibly used for rest
+and sustain. I need to convert this and the audio input into a common format
+to be decided.
+
+[22/02/2026 - 10:56] -AA
+The notes in the dataset are on a 16th note grid, and we have 64 "events"
+per entry, so that's a 4-bar melody dataset.
+
+The format we're using is between MIDI and this dataset, so it contains the tempo
+but then quantizes notes and rests into 16th steps.
