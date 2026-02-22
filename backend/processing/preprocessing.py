@@ -71,37 +71,3 @@ def midi_to_model_format(midi_data):
     model_format["notes"] = events
 
     return model_format
-
-def model_format_to_midi(model_format):
-    """
-    Converts from the model format to a MIDI file
-    """
-
-    pm = pretty_midi.PrettyMIDI()
-    program = pretty_midi.instrument_name_to_program("Acoustic Grand Piano")
-    instrument = pretty_midi.Instrument(program=program)
-
-    tempo = model_format["tempo"]
-    notes = model_format["notes"]
-    current_time = 0
-    for pitch, duration in notes:
-        delta_time = (duration / 4) / tempo * 60
-        if pitch != 0:
-            note = pretty_midi.Note(
-                velocity=50,
-                pitch=pitch,
-                start=current_time,
-                end=current_time+delta_time
-            )
-            instrument.notes.append(note)
-        current_time += delta_time
-    
-    pm.instruments.append(instrument)
-
-    return pm
-
-def test_pipeline(audio_filepath):
-    midi_data = get_midi_data(audio_filepath)
-    model_format = midi_to_model_format(midi_data)
-    output_midi = model_format_to_midi(model_format)
-    return output_midi
