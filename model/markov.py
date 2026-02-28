@@ -1,5 +1,8 @@
 # modeling it up 
-
+import pickle
+#to save the model in a file and keep the tuple as tuples 
+#since json we would have to convert them to string to save and back for it to work 
+#pickle saves them as binary
 
 def train(data,order):
     model={}
@@ -24,7 +27,7 @@ def train(data,order):
 
         for next in model[state]:
             model[state][next] /= total
-
+    print("success")
     return model
 
 def generate(model,state):
@@ -40,13 +43,20 @@ def generate(model,state):
         if proba < model[state][next]:
             proba = model[state][next]
             result = next 
+            print("result "+str(result)+" with proba of :"+str(proba))
 
-    print(result)
     return result
 
+def save_model(model,file):
+    with open(file,"wb") as f:
+        pickle.dump(model,f)
 
-data = [1,1,3,2,4,7,6,4,1,2,3,4,4,4,5,6,8,9,1,2,2,1,0,3,4]
+def load_model(file):
+    with open(file,"rb") as f:
+        return pickle.load(f)
+
+data = [63, 61, 65, 60, 64, 62, 63, 60, 65, 61, 64, 62, 60, 63, 65, 61, 62, 64, 60, 63, 63, 61, 65, 60, 64, 62, 63, 60, 65, 61, 64, 62, 60, 63, 65, 61, 62, 64, 60, 63]
 
 model = train(data,1)
-state = (2,)
-generate(model,state)
+
+save_model(model,"music-model.pkl")
