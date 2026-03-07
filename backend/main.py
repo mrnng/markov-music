@@ -1,3 +1,6 @@
+# TODO: the backend does not work right now, as it relies on the test_pipeline
+# from preprocessing, which does not exist. We simply need to add a pipeline
+# function when we're done and it will work.
 import os
 from tempfile import NamedTemporaryFile
 from flask import Flask, request, redirect, send_file
