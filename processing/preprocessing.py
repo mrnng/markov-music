@@ -62,6 +62,16 @@ def detect_key_from_histogram(histogram):
 
     return best_key
 
+def get_pitch_class_histogram(notes):
+    histogram = np.zeros(12)
+
+    for note in notes:
+        pitch_class = note.pitch % 12
+        duration = note.end - note.start
+        histogram[pitch_class] += duration
+
+    return histogram
+
 def midi_to_model_format(midi_data):
     """
     Converts to the format used for the Markov model, which is:
@@ -102,6 +112,32 @@ def midi_to_model_format(midi_data):
         model_format["notes"] = []
         return model_format
 
+    # key detection
+    histogram = get_pitch_class_histogram(filtered_notes)
+    key = detect_key_from_histogram(histogram)
+
+    NOTE_TO_PC = {
+        "C":0, "C#":1, "D":2, "D#":3, "E":4, "F":5,
+        "F#":6, "G":7, "G#":8, "A":9, "A#":10, "B":11
+    }
+
+    if key is None:
+        tonic_pc = filtered_notes[0].pitch % 12
+    else:
+        root, _ = key.split("-")
+        tonic_pc = NOTE_TO_PC[root]
+
+    tonic_midi = None
+    for note in filtered_notes:
+        if note.pitch % 12 == tonic_pc:
+            tonic_midi = note.pitch
+            break
+
+    if tonic_midi is None:
+        tonic_midi = filtered_notes[0].pitch
+
+    model_format["tonic_midi"] = tonic_midi
+
     # this is the actual note to format step
     events = []
     current_time = round(filtered_notes[0].start / step_duration) * step_duration
@@ -110,7 +146,11 @@ def midi_to_model_format(midi_data):
         if rest_steps > 0:
             events.append((0, rest_steps))
         duration_steps = max(1, round((note.end - note.start) / step_duration))
-        events.append((note.pitch, duration_steps))
+        relative_pitch = note.pitch - tonic_midi
+        # 0 = rest, not a pitch, so we shift all the positive degrees by 1
+        if relative_pitch >= 0:
+            relative_pitch += 1
+        events.append((relative_pitch, duration_steps))
         current_time = note.start + duration_steps * step_duration
 
     model_format["notes"] = events

@@ -10,6 +10,7 @@ def model_format_to_midi(model_format):
     instrument = pretty_midi.Instrument(program=program)
 
     tempo = model_format["tempo"]
+    tonic_midi = model_format["tonic_midi"]
     notes = model_format["notes"]
     current_time = 0
     for pitch, duration in notes:
@@ -17,7 +18,7 @@ def model_format_to_midi(model_format):
         if pitch != 0:
             note = pretty_midi.Note(
                 velocity=50,
-                pitch=pitch,
+                pitch=pitch + tonic_midi,
                 start=current_time,
                 end=current_time+delta_time
             )
