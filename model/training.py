@@ -1,7 +1,7 @@
 import json
 import tensorflow.keras as keras
-from data_processing import generate_training_sequences
-from data_processing import SEQUENCE_LENGTH, SINGLE_FILE_DATASET_PATH, MAPPING_PATH
+from model.data_processing import generate_training_sequences
+from model.data_processing import SEQUENCE_LENGTH, SINGLE_FILE_DATASET_PATH, MAPPING_PATH
 
 with open(MAPPING_PATH, "r") as f:
     OUTPUT_UNITS = len(json.load(f))

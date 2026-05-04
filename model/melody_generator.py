@@ -2,8 +2,8 @@ import json
 import numpy as np
 import music21 as m21
 import tensorflow.keras as keras
-from data_processing import SEQUENCE_LENGTH, MAPPING_PATH
-from training import SAVE_MODEL_PATH
+from model.data_processing import SEQUENCE_LENGTH, MAPPING_PATH
+from model.training import SAVE_MODEL_PATH
 
 class MelodyGenerator:
     def __init__(self, model_path=SAVE_MODEL_PATH):
@@ -61,6 +61,7 @@ class MelodyGenerator:
                     start_symbol = symbol
             else:
                 step_counter += 1
+        
         stream.write(file_format, file_name)
 
 

@@ -2,7 +2,7 @@ import os
 import pretty_midi
 import music21 as m21
 from basic_pitch.inference import predict
-from data_processing import encode_song
+from model.data_processing import encode_song
 
 def get_midi_data(input_audio_path):
     if not os.path.exists(input_audio_path):

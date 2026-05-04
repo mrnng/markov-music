@@ -1,11 +1,10 @@
-# TODO: the backend does not work right now, as it relies on the test_pipeline
-# from preprocessing, which does not exist. We simply need to add a pipeline
-# function when we're done and it will work.
 import os
 from tempfile import NamedTemporaryFile
 from flask import Flask, request, redirect, send_file
 from werkzeug.utils import secure_filename
-from processing.preprocessing import test_pipeline
+from model.melody_generator import MelodyGenerator
+from model.input_processing import process_input
+from model.data_processing import SEQUENCE_LENGTH
 
 app = Flask(__name__)
 
@@ -38,8 +37,11 @@ def upload_file():
             file.save(input_path.name)
         
             # this is the actual processing
-            output_midi = test_pipeline(input_path.name)
-            output_midi.write(output_path.name)
+            processed_input = process_input(input_path.name)
+            mg = MelodyGenerator()
+            seed = processed_input["encoded_song"]
+            melody = mg.generate_melody(seed, 500, SEQUENCE_LENGTH, 0.3)
+            mg.save_melody(melody, file_name=output_path.name)
 
             # as_attachment=True forces the browser to download the file
             return send_file(
@@ -49,4 +51,4 @@ def upload_file():
                 mimetype="audio/midi"
             )
     
-    return { message: "Error generating file." }
+    return { "message": "Error generating file." }
