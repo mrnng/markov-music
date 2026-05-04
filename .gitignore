@@ -1,3 +1,15 @@
 # Ignore Python cache files
 __pycache__/
 *.py[cod]
+
+# Ignore dataset files
+dataset/
+europa/
+file-dataset.txt
+mapping.json
+
+# Ignore the final model
+model.h5
+
+# Ignore the generated file
+generated.mid

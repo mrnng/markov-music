@@ -116,6 +116,8 @@ def process_input(input_audio_path):
 
     encoded_song = encode_song(stream)
 
-    print(encoded_song)
-
-process_input("./Test-2.m4a")
+    return {
+        "encoded_song": encoded_song,
+        "tempo": tempo,
+        "key": key
+    }
