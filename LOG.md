@@ -67,3 +67,7 @@ per entry, so that's a 4-bar melody dataset.
 
 The format we're using is between MIDI and this dataset, so it contains the tempo
 but then quantizes notes and rests into 16th steps.
+
+[04/05/2026 - 10:11] -AA
+The Markov chain model is insufficient to recognize and produce musicality.
+For this reason, we have begun the migration to an RNN-LSTM architecture.
