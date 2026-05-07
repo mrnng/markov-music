@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import Slider from "@react-native-community/slider";
 import { Audio } from "expo-av";
 import { RecordingOptionsPresets } from "expo-av/build/Audio";
 import React from "react";
@@ -17,6 +18,7 @@ export default function Index() {
   const [recordedFile, setRecordedFile] = React.useState<RecordedFile | null>(
     null,
   );
+  const [temperature, setTemperature] = React.useState(0.3);
 
   async function startRecording() {
     try {
@@ -74,20 +76,67 @@ export default function Index() {
     if (!recordedFile) return;
 
     return (
-      <View style={styles.recordingRow}>
-        <View style={styles.underlineWrap}>
-          <Pressable onPress={() => recordedFile.sound.replayAsync()}>
-            <Text style={styles.playText}>
-              live-recording.m4a ({recordedFile.duration})
-            </Text>
+      <View>
+        <View style={styles.recordingRow}>
+          <View style={styles.underlineWrap}>
+            <Pressable onPress={() => recordedFile.sound.replayAsync()}>
+              <Text style={styles.playText}>
+                live-recording.m4a ({recordedFile.duration})
+              </Text>
+            </Pressable>
+
+            <View style={styles.purpleUnderline} />
+          </View>
+
+          <Pressable onPress={clearRecording} style={styles.clearButton}>
+            <Ionicons name="close" size={32} color="black" />
           </Pressable>
-
-          <View style={styles.purpleUnderline} />
         </View>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 12,
+            marginBottom: 30,
+          }}
+        >
+          <View style={{ flex: 1 }}>
+            <Text
+              style={{
+                marginBottom: 6,
+                fontFamily: "Inter_400Regular",
+                fontSize: 13,
+              }}
+            >
+              Temperature: {temperature.toFixed(1)}
+            </Text>
 
-        <Pressable onPress={clearRecording} style={styles.clearButton}>
-          <Ionicons name="close" size={32} color="black" />
-        </Pressable>
+            <Slider
+              style={{ width: "100%", height: 50 }}
+              minimumValue={0.1}
+              maximumValue={0.9}
+              step={0.1}
+              value={temperature}
+              onValueChange={(temp) => setTemperature(temp)}
+              minimumTrackTintColor="#3500B2"
+              maximumTrackTintColor="#3500B2"
+              thumbTintColor="#3500B2"
+            />
+          </View>
+
+          <Pressable
+            style={{
+              width: 50,
+              height: 50,
+              borderRadius: 25,
+              backgroundColor: "#3500B2",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <Ionicons name="musical-note" size={24} color="#FFFFFF" />
+          </Pressable>
+        </View>
       </View>
     );
   }
