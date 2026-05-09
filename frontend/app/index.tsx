@@ -1,18 +1,25 @@
 import { Ionicons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
-import { Audio } from "expo-av";
-import { RecordingOptionsPresets } from "expo-av/build/Audio";
-import React from "react";
+import {
+	useAudioRecorder,
+	AudioModule,
+	RecordingPresets,
+	setAudioModeAsync,
+	useAudioRecorderState,
+	useAudioPlayer,
+	useAudioPlayerStatus,
+} from "expo-audio";
+import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 
 export default function Index() {
-	const [recording, setRecording] = React.useState<Audio.Recording | null>(
-		null,
-	);
+	const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+	const recorderState = useAudioRecorderState(audioRecorder);
+
 	const [isProcessing, setIsProcessing] = React.useState(false);
 	type RecordedFile = {
-		sound: Audio.Sound;
+		name: string;
 		duration: string;
 		file: string | null;
 	};
@@ -21,45 +28,37 @@ export default function Index() {
 	);
 	const [temperature, setTemperature] = React.useState(0.3);
 
+	const player = useAudioPlayer(recordedFile?.file);
+	const playerStatus = useAudioPlayerStatus(player);
 	async function startRecording() {
 		try {
-			const perm = await Audio.requestPermissionsAsync();
-			if (perm.status === "granted") {
-				await Audio.setAudioModeAsync({
-					allowsRecordingIOS: true,
-					playsInSilentModeIOS: true,
+			const status = await AudioModule.requestRecordingPermissionsAsync();
+			console.log("start");
+			if (status.granted) {
+				await setAudioModeAsync({
+					allowsRecording: true,
+					playsInSilentMode: true,
 				});
-				const { recording } = await Audio.Recording.createAsync(
-					RecordingOptionsPresets.HIGH_QUALITY,
-				);
-				setRecording(recording);
+				await audioRecorder.prepareToRecordAsync();
+				audioRecorder.record();
 			}
 		} catch (error) {}
 	}
 
 	async function stopRecording() {
-		if (!recording) return;
-
 		setIsProcessing(true);
+		console.log("stop");
+		await audioRecorder.stop();
 
-		const currentRecording = recording;
-		setRecording(null);
-
-		await currentRecording.stopAndUnloadAsync();
-
-		const { sound, status } =
-			await currentRecording.createNewLoadedSoundAsync();
-
-		if (!status.isLoaded || status.durationMillis == null) {
-			setIsProcessing(false);
-			return;
-		}
-		console.log(status.durationMillis);
+		await setAudioModeAsync({
+			allowsRecording: false,
+			playsInSilentMode: true,
+		});
 
 		let file = {
-			sound,
-			duration: getDurationFormatted(status.durationMillis),
-			file: currentRecording.getURI(),
+			name: "live-recording.m4a",
+			duration: getDurationFormatted(recorderState.durationMillis),
+			file: audioRecorder.uri,
 		};
 
 		setRecordedFile(file);
@@ -69,10 +68,6 @@ export default function Index() {
 	async function getDocument() {
 		try {
 			setIsProcessing(true);
-
-			if (recordedFile?.sound) {
-				await recordedFile.sound.unloadAsync();
-			}
 
 			const result = await DocumentPicker.getDocumentAsync({
 				type: "audio/*",
@@ -85,29 +80,18 @@ export default function Index() {
 			}
 
 			const document = result.assets[0];
-			const { sound, status } = await Audio.Sound.createAsync(
-				{ uri: document.uri },
-				{ shouldPlay: false },
-			);
-
-			let duration = 0;
-			if (status.isLoaded) {
-				if (status.durationMillis) {
-					duration = status.durationMillis;
-				}
-			}
+			const name = document.file?.name;
 
 			let file = {
-				sound,
-				duration: getDurationFormatted(duration),
+				name: name ? name : "recordedfile",
+				duration: "0",
 				file: document.uri,
 			};
-			console.log(duration);
-
 			setRecordedFile(file);
 			setIsProcessing(false);
 		} catch (error) {
 			alert("failed to load file");
+			console.error(error);
 			setIsProcessing(false);
 		}
 	}
@@ -119,6 +103,27 @@ export default function Index() {
 			? `${Math.floor(minutes)}:0${seconds}`
 			: `${Math.floor(minutes)}:${seconds}`;
 	}
+	const playRecording = () => {
+		try {
+			if (playerStatus.currentTime == playerStatus.duration)
+				player.seekTo(0);
+			player.play();
+		} catch (error) {
+			alert("Failed to play recording.");
+		}
+	};
+	const stopPlaying = () => {
+		try {
+			player.pause();
+		} catch (error) {}
+	};
+	const togglePlay = () => {
+		if (playerStatus.playing) {
+			stopPlaying();
+		} else {
+			playRecording();
+		}
+	};
 
 	function getRecording() {
 		if (!recordedFile) return;
@@ -127,14 +132,9 @@ export default function Index() {
 			<View>
 				<View style={styles.recordingRow}>
 					<View style={styles.underlineWrap}>
-						<Pressable
-							onPress={() => {
-								recordedFile.sound.replayAsync();
-								console.log("play");
-							}}
-						>
+						<Pressable onPress={togglePlay}>
 							<Text style={styles.playText}>
-								live-recording.m4a ({recordedFile.duration})
+								{recordedFile.name} ({recordedFile.duration})
 							</Text>
 						</Pressable>
 
@@ -209,7 +209,7 @@ export default function Index() {
 		<View style={styles.container}>
 			<View style={styles.mainBox}>
 				<Text style={styles.mainText}>
-					{recording
+					{recorderState.isRecording
 						? "Recording..."
 						: isProcessing
 							? "Choose the temperature of the model and generate a phrase!"
@@ -222,10 +222,14 @@ export default function Index() {
 			<View style={styles.bottomBox}>
 				{getRecording()}
 				<Pressable
-					onPress={recording ? stopRecording : startRecording}
+					onPress={
+						recorderState.isRecording
+							? stopRecording
+							: startRecording
+					}
 					style={styles.recordOuterCircle}
 				>
-					{recording ? (
+					{recorderState.isRecording ? (
 						<View style={styles.stopInner} />
 					) : (
 						<View style={styles.recordInner} />
