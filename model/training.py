@@ -11,11 +11,11 @@ LOSS = "sparse_categorical_crossentropy"
 LEARNING_RATE = 0.001
 EPOCHS = 2
 BATCH_SIZE = 64
-SAVE_MODEL_PATH = "model.h5"
+SAVE_MODEL_PATH = "model.weights.h5"
 
 def build_model(output_units, num_units, loss, learning_rate):
     # INTEGER INPUTS
-    input_layer = keras.layers.Input(shape=(None,))
+    input_layer = keras.layers.Input(shape=(SEQUENCE_LENGTH,))
 
     # EMBEDDING LAYER
     x = keras.layers.Embedding(
@@ -51,10 +51,20 @@ def train(output_units, num_units, loss, learning_rate, epochs, batch_size, save
     # 2. BUILD THE NETWORK
     model = build_model(output_units, num_units, loss, learning_rate)
     # 3. TRAIN THE MODEL
-    model.fit(inputs, targets, epochs=epochs, batch_size=batch_size)
+    checkpoint = keras.callbacks.ModelCheckpoint(
+        filepath="checkpoint_epoch_{epoch:02d}.weights.h5",
+        save_weights_only=True,
+        save_freq="epoch"
+    )
+    model.fit(
+        inputs,
+        targets,
+        epochs=epochs,
+        batch_size=batch_size,
+        callbacks=[checkpoint]
+    )
     # 4. SAVE THE MODEL
-    model.save(save_model_path)
-
+    model.save_weights(save_model_path)
 
 if __name__ == "__main__":
     train(OUTPUT_UNITS, NUM_UNITS, LOSS, LEARNING_RATE, EPOCHS, BATCH_SIZE, SAVE_MODEL_PATH)

@@ -1,8 +1,75 @@
 import os
+import math
 import pretty_midi
 import music21 as m21
 from basic_pitch.inference import predict
-from model.data_processing import encode_song
+
+def encode_song(song, time_step=0.25):
+    # Map-based approach ensures every event is processed and nothing is skipped.
+    # We call stream() to avoid StreamIteratorInefficientWarning.
+    flat_song = song.flatten().notesAndRests.stream()
+    if not flat_song:
+        return ""
+
+    steps_map = {}
+    # Sort by offset to ensure later notes correctly handle overlaps.
+    # If offsets are equal, higher pitch wins for the melody.
+    events = sorted(flat_song, key=lambda e: (e.offset, getattr(e, 'pitch', m21.pitch.Pitch(0)).midi))
+    
+    for event in events:
+        start_step = int(round(event.offset / time_step))
+        duration_steps = int(round(event.duration.quarterLength / time_step))
+        if duration_steps < 1:
+            duration_steps = 1
+            
+        symbol = str(event.pitch.midi) if isinstance(event, m21.note.Note) else "r"
+        
+        # Place note start
+        steps_map[start_step] = symbol
+        
+        # Place sustains
+        for s in range(start_step + 1, start_step + duration_steps):
+            # Only fill if nothing else has started here
+            if s not in steps_map:
+                steps_map[s] = "_"
+    
+    if not steps_map:
+        return ""
+        
+    max_step = max(steps_map.keys())
+    raw_encoded = []
+    for i in range(max_step + 1):
+        val = steps_map.get(i, "r")
+        # Handle rest sustains for consistency
+        if val == "r" and raw_encoded and (raw_encoded[-1] == "r" or raw_encoded[-1] == "_"):
+            raw_encoded.append("_")
+        else:
+            raw_encoded.append(val)
+            
+    # Post-process to enforce power-of-2 durations (no dotted notes or ties)
+    encoded_song = []
+    i = 0
+    while i < len(raw_encoded):
+        symbol = raw_encoded[i]
+        length = 1
+        j = i + 1
+        while j < len(raw_encoded) and raw_encoded[j] == "_":
+            length += 1
+            j += 1
+        
+        # Largest power of 2 <= length (1, 2, 4, 8, 16...)
+        new_length = 2 ** int(math.log2(length))
+        
+        encoded_song.append(symbol)
+        for _ in range(new_length - 1):
+            encoded_song.append("_")
+        # Fill truncation gaps with rests
+        for _ in range(length - new_length):
+            encoded_song.append("r")
+            
+        i = j
+            
+    return " ".join(encoded_song)
 
 def get_midi_data(input_audio_path):
     if not os.path.exists(input_audio_path):
@@ -23,8 +90,6 @@ def get_main_instrument(midi_data):
 
 def quantize(stream, time_step=0.25):
     quantized_stream = m21.stream.Stream()
-
-    # 1. GET ALL NOTES AND RESTS
     notes = stream.flatten().notesAndRests
 
     for note in notes:
@@ -32,10 +97,15 @@ def quantize(stream, time_step=0.25):
         duration = note.duration.quarterLength
 
         quantized_start = round(start / time_step) * time_step
-        quantized_duration = round(duration / time_step) * time_step
-
-        if quantized_duration == 0:
-            quantized_duration = time_step
+        
+        # Round to nearest power of 2 steps
+        steps = duration / time_step
+        if steps < 1:
+            steps = 1
+        power_of_2_steps = 2 ** round(math.log2(steps))
+        if power_of_2_steps < 1:
+            power_of_2_steps = 1
+        quantized_duration = power_of_2_steps * time_step
 
         if isinstance(note, m21.note.Note):
             new_note = m21.note.Note(note.pitch.midi)
@@ -101,23 +171,58 @@ def process_input(input_audio_path):
     filtered_instrument = filter_notes(main_instrument)
 
     stream = m21.stream.Stream()
+    stream.append(m21.tempo.MetronomeMark(number=tempo))
 
     for note in filtered_instrument.notes:
         n = m21.note.Note(note.pitch)
-        n.offset = note.start
-        n.quarterLength = note.end - note.start
+        # Convert seconds to quarter lengths (beats)
+        n.offset = note.start * (tempo / 60)
+        n.quarterLength = (note.end - note.start) * (tempo / 60)
         stream.insert(n)
 
     # 3. QUANTIZE STREAM TO A 16th-note GRID
     quantized_stream = quantize(stream)
-
+    
     # 4. TRANPOSE STREAM TO C/Am
-    key, transposed_stream = tranpose(stream)
+    key, transposed_stream = tranpose(quantized_stream)
 
-    encoded_song = encode_song(stream)
+    encoded_song = encode_song(transposed_stream)
 
     return {
         "encoded_song": encoded_song,
         "tempo": tempo,
         "key": key
     }
+
+def save_melody(melody, step_duration=0.25, file_format="midi", file_name="generated.mid", tempo=120):
+    stream = m21.stream.Stream()
+    stream.append(m21.tempo.MetronomeMark(number=tempo))
+    start_symbol = None
+    step_counter = 1
+    for idx, symbol in enumerate(melody):
+        if start_symbol is None:
+            start_symbol = symbol
+            continue
+        if symbol != "_" or idx + 1 == len(melody):
+            if start_symbol is not None:
+                quarter_length_duration = step_duration * step_counter
+                if start_symbol == "r":
+                    m21_event = m21.note.Rest(quarterLength=quarter_length_duration)
+                else:
+                    m21_event = m21.note.Note(int(start_symbol), quarterLength=quarter_length_duration)
+                stream.append(m21_event)
+                step_counter = 1
+                start_symbol = symbol
+        else:
+            step_counter += 1
+        
+    stream.write(file_format, file_name)
+
+if __name__ == "__main__":
+    results = process_input("test.mp3")
+    melody = results["encoded_song"].split()
+    tempo = results["tempo"]
+    print(f"Encoded melody: {melody}")
+    print(f"Estimated tempo: {tempo}")
+    save_melody(melody, tempo=tempo)
+

@@ -4,11 +4,20 @@ import music21 as m21
 import tensorflow.keras as keras
 from model.data_processing import SEQUENCE_LENGTH, MAPPING_PATH
 from model.training import SAVE_MODEL_PATH
+from model.training import OUTPUT_UNITS, NUM_UNITS, LOSS, LEARNING_RATE
+from model.training import build_model
 
 class MelodyGenerator:
     def __init__(self, model_path=SAVE_MODEL_PATH):
         self.model_path = model_path
-        self.model = keras.models.load_model(model_path)
+        self.model = build_model(
+            output_units=OUTPUT_UNITS,
+            num_units=NUM_UNITS,
+            loss=LOSS,
+            learning_rate=LEARNING_RATE
+        )
+
+        self.model.load_weights(model_path)
         
         with open(MAPPING_PATH, "r") as f:
             self._mapping = json.load(f)

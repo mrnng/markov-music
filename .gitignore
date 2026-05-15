@@ -9,7 +9,7 @@ file-dataset.txt
 mapping.json
 
 # Ignore the final model
-model.h5
+model.weights.h5
 
 # Ignore the generated file
 generated.mid
