@@ -38,13 +38,19 @@ def encode_song(song, time_step=0.25):
         
     max_step = max(steps_map.keys())
     raw_encoded = []
+    last_event_symbol = None
     for i in range(max_step + 1):
         val = steps_map.get(i, "r")
-        # Handle rest sustains for consistency
-        if val == "r" and raw_encoded and (raw_encoded[-1] == "r" or raw_encoded[-1] == "_"):
-            raw_encoded.append("_")
+        if val == "r":
+            if raw_encoded and (raw_encoded[-1] == "r" or (raw_encoded[-1] == "_" and last_event_symbol == "r")):
+                raw_encoded.append("_")
+            else:
+                raw_encoded.append("r")
         else:
             raw_encoded.append(val)
+
+        if val != "_":
+            last_event_symbol = val
             
     # Post-process to enforce power-of-2 durations (no dotted notes or ties)
     encoded_song = []
@@ -90,22 +96,42 @@ def get_main_instrument(midi_data):
 
 def quantize(stream, time_step=0.25):
     quantized_stream = m21.stream.Stream()
-    notes = stream.flatten().notesAndRests
+    notes = sorted(stream.flatten().notesAndRests, key=lambda n: n.offset)
+    
+    # Valid power-of-2 step lengths
+    VALID_STEPS = [1, 2, 4, 8, 16]
 
-    for note in notes:
-        start = note.offset
-        duration = note.duration.quarterLength
+    for i, note in enumerate(notes):
+        start = float(note.offset)
+        duration = float(note.duration.quarterLength)
 
         quantized_start = round(start / time_step) * time_step
         
-        # Round to nearest power of 2 steps
-        steps = duration / time_step
-        if steps < 1:
-            steps = 1
-        power_of_2_steps = 2 ** round(math.log2(steps))
-        if power_of_2_steps < 1:
+        # Round duration to nearest valid power-of-2 steps
+        target_steps = duration / time_step
+        if target_steps < 1:
             power_of_2_steps = 1
+        else:
+            # Find the closest value in VALID_STEPS
+            power_of_2_steps = min(VALID_STEPS, key=lambda x: abs(x - target_steps))
+            
         quantized_duration = power_of_2_steps * time_step
+
+        # Prevent overlap with the next note
+        if i < len(notes) - 1:
+            next_start = float(notes[i+1].offset)
+            quantized_next_start = round(next_start / time_step) * time_step
+            if quantized_start + quantized_duration > quantized_next_start:
+                # Reduce duration to fit before the next note
+                max_allowed_steps = int((quantized_next_start - quantized_start) / time_step)
+                if max_allowed_steps >= 1:
+                    # Find largest valid power-of-2 steps that fits
+                    fitting_steps = [s for s in VALID_STEPS if s <= max_allowed_steps]
+                    power_of_2_steps = max(fitting_steps) if fitting_steps else 1
+                    quantized_duration = power_of_2_steps * time_step
+                else:
+                    # Skip if it doesn't fit even 1 step
+                    continue
 
         if isinstance(note, m21.note.Note):
             new_note = m21.note.Note(note.pitch.midi)
@@ -121,30 +147,49 @@ def quantize(stream, time_step=0.25):
 
 def filter_notes(main_instrument):
     notes = sorted(main_instrument.notes, key=lambda n: n.start)
-    # Sometimes, audio picks up an extra octave sound not present
-    # in the original recording, which we will filter out.
-    filtered_notes = []
+    # 1. Octave filtering (existing logic)
+    octave_filtered = []
     i = 0
-    while i < len(notes) - 1:
-        if abs(notes[i].start - notes[i+1].start) < 0.1:
+    while i < len(notes):
+        if i < len(notes) - 1 and abs(notes[i].start - notes[i+1].start) < 0.1:
             note_i = pretty_midi.note_number_to_name(notes[i].pitch)
             note_j = pretty_midi.note_number_to_name(notes[i+1].pitch)
             if note_i[:-1] == note_j[:-1]:
                 note_to_keep = i if int(note_i[-1]) < int(note_j[-1]) else i + 1
-                filtered_notes.append(notes[note_to_keep])
+                octave_filtered.append(notes[note_to_keep])
                 i += 2
                 continue
-        filtered_notes.append(notes[i])
+        octave_filtered.append(notes[i])
         i += 1
+
+    # 2. Overlap filtering (Monophonic cleaning)
+    # If notes overlap by more than 50% of the shorter note's duration, keep the longer one.
+    monophonic_notes = []
+    if not octave_filtered:
+        return main_instrument
+
+    current_note = octave_filtered[0]
+    for next_note in octave_filtered[1:]:
+        overlap = min(current_note.end, next_note.end) - max(current_note.start, next_note.start)
+        if overlap > 0:
+            shorter_duration = min(current_note.end - current_note.start, next_note.end - next_note.start)
+            if overlap / shorter_duration > 0.5:
+                # Significant overlap, keep the longer one
+                if (current_note.end - current_note.start) < (next_note.end - next_note.start):
+                    current_note = next_note
+                continue
+        
+        monophonic_notes.append(current_note)
+        current_note = next_note
+    
+    monophonic_notes.append(current_note)
 
     filtered_instrument = pretty_midi.Instrument(
         program=main_instrument.program,
         is_drum=main_instrument.is_drum,
         name=main_instrument.name
     )
-
-    filtered_instrument.notes = filtered_notes
-
+    filtered_instrument.notes = monophonic_notes
     return filtered_instrument
 
 def tranpose(stream):
@@ -197,25 +242,32 @@ def process_input(input_audio_path):
 def save_melody(melody, step_duration=0.25, file_format="midi", file_name="generated.mid", tempo=120):
     stream = m21.stream.Stream()
     stream.append(m21.tempo.MetronomeMark(number=tempo))
-    start_symbol = None
-    step_counter = 1
-    for idx, symbol in enumerate(melody):
-        if start_symbol is None:
-            start_symbol = symbol
+    
+    if not melody:
+        return
+
+    i = 0
+    while i < len(melody):
+        symbol = melody[i]
+        if symbol == "_":
+            i += 1
             continue
-        if symbol != "_" or idx + 1 == len(melody):
-            if start_symbol is not None:
-                quarter_length_duration = step_duration * step_counter
-                if start_symbol == "r":
-                    m21_event = m21.note.Rest(quarterLength=quarter_length_duration)
-                else:
-                    m21_event = m21.note.Note(int(start_symbol), quarterLength=quarter_length_duration)
-                stream.append(m21_event)
-                step_counter = 1
-                start_symbol = symbol
+            
+        length = 1
+        j = i + 1
+        while j < len(melody) and melody[j] == "_":
+            length += 1
+            j += 1
+            
+        duration = length * step_duration
+        if symbol == "r":
+            m21_event = m21.note.Rest(quarterLength=duration)
         else:
-            step_counter += 1
+            m21_event = m21.note.Note(int(symbol), quarterLength=duration)
         
+        stream.append(m21_event)
+        i = j
+    
     stream.write(file_format, file_name)
 
 if __name__ == "__main__":
