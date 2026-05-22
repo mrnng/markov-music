@@ -43,9 +43,20 @@ class MelodyGenerator:
 
         return melody
 
+    # def _sample_with_temperature(self, probabilities, temperature):
+    #     predictions = np.log(probabilities) / temperature
+    #     probabilities = np.exp(predictions) / np.sum(np.exp(predictions))
+    #     choices = range(len(probabilities))
+    #     index = np.random.choice(choices, p=probabilities)
+    #     return index
     def _sample_with_temperature(self, probabilities, temperature):
+        probabilities = np.array(probabilities)
+        probabilities = np.clip(probabilities, 1e-10, 1.0)
+
         predictions = np.log(probabilities) / temperature
-        probabilities = np.exp(predictions) / np.sum(np.exp(predictions))
+        exp_preds = np.exp(predictions - np.max(predictions))
+        probabilities = exp_preds / np.sum(exp_preds)
+
         choices = range(len(probabilities))
         index = np.random.choice(choices, p=probabilities)
         return index
