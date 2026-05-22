@@ -9,14 +9,21 @@ import {
   useAudioRecorder,
   useAudioRecorderState,
 } from "expo-audio";
+
 import * as DocumentPicker from "expo-document-picker";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+
+import { useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import * as DocumentPicker from "expo-document-picker";
+import { File, Directory, Paths } from "expo-file-system";
 
 export default function Index() {
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(audioRecorder);
 
+<<<<<<< HEAD
   const [isProcessing, setIsProcessing] = React.useState(false);
   type RecordedFile = {
     name: string;
@@ -49,6 +56,41 @@ export default function Index() {
     setIsProcessing(true);
     console.log("stop");
     await audioRecorder.stop();
+=======
+	const [isProcessing, setIsProcessing] = useState(false);
+	type RecordedFile = {
+		name: string;
+		duration: string;
+		file: string | null;
+	};
+	const [recordedFile, setRecordedFile] = useState<RecordedFile | null>(null);
+	const [temperature, setTemperature] = useState(0.3);
+
+	const player = useAudioPlayer(recordedFile?.file);
+	const playerStatus = useAudioPlayerStatus(player);
+
+	// Getting Input Section
+
+	async function startRecording() {
+		try {
+			const status = await AudioModule.requestRecordingPermissionsAsync();
+			console.log("start");
+			if (status.granted) {
+				await setAudioModeAsync({
+					allowsRecording: true,
+					playsInSilentMode: true,
+				});
+				await audioRecorder.prepareToRecordAsync();
+				audioRecorder.record();
+			}
+		} catch (error) {}
+	}
+	async function stopRecording() {
+		setIsProcessing(true);
+
+		console.log("stop");
+		await audioRecorder.stop();
+>>>>>>> abb098b6844cd433aa7585d5ae98ac7011ff1e9d
 
     await setAudioModeAsync({
       allowsRecording: false,
@@ -96,6 +138,7 @@ export default function Index() {
     }
   }
 
+<<<<<<< HEAD
   function getDurationFormatted(milliseconds: number) {
     const minutes = milliseconds / 1000 / 60;
     const seconds = Math.round((minutes - Math.floor(minutes)) * 60);
@@ -123,6 +166,106 @@ export default function Index() {
       playRecording();
     }
   };
+=======
+	function getDurationFormatted(milliseconds: number) {
+		const minutes = milliseconds / 1000 / 60;
+		const seconds = Math.round((minutes - Math.floor(minutes)) * 60);
+		return seconds < 10
+			? `${Math.floor(minutes)}:0${seconds}`
+			: `${Math.floor(minutes)}:${seconds}`;
+	}
+	// Where the magic happens
+	async function generateMelody() {
+		if (!recordedFile?.file) {
+			alert("please record or upload audio");
+			return;
+		}
+		try {
+			let filename = recordedFile.name;
+			//to make sure it has an extension
+			if (!filename.includes(".")) filename = "recording.m4a";
+
+			// i think we could do it without this line because we know what we are sending
+			const ext = filename.split(".").pop()?.toLowerCase();
+			const mimeType = ext === "mp3" ? "audio/mpeg" : "audio/mp4";
+
+			const formData = new FormData();
+			formData.append("file", {
+				uri: recordedFile.file,
+				name: filename,
+				type: mimeType,
+			} as any);
+			// just put your ip when you run the backend
+			const response = await fetch(`${"YOUR IP"}/generate`, {
+				method: "POST",
+				body: formData,
+			});
+
+			if (!response.ok) {
+				const errorText = await response.text();
+				console.error("Server error:", response.status, errorText);
+				alert(`Server error ${response.status}`);
+				throw new Error(errorText);
+			}
+
+			// Read the echoed file bytes directly
+			const responseBuffer = await response.arrayBuffer();
+			const bytes = new Uint8Array(responseBuffer);
+
+			// create directory if it deosnt exist
+
+			const dir = new Directory(Paths.cache, "generated-melodies");
+			if (!dir.exists) {
+				dir.create();
+			}
+			// here just creating the file and putting it in the directory
+			const timestamp = Date.now();
+			const uniqueName = `melody-${timestamp}.mid`;
+
+			const outputFile = new File(
+				Paths.cache,
+				` generated-melodies/${uniqueName}`,
+			);
+			outputFile.create();
+			outputFile.write(bytes);
+
+			setRecordedFile({
+				name: "generated-melody.mid",
+				duration: "0",
+				file: outputFile.uri,
+			});
+		} catch (error) {
+			console.error("Generation error:", error);
+			alert(
+				"Failed: " +
+					(error instanceof Error ? error.message : String(error)),
+			);
+		}
+	}
+
+	// Player Section
+	const playRecording = () => {
+		try {
+			if (playerStatus.currentTime == playerStatus.duration)
+				player.seekTo(0);
+			player.play();
+		} catch (error) {
+			alert("Failed to play recording.");
+		}
+	};
+	const stopPlaying = () => {
+		try {
+			player.pause();
+		} catch (error) {}
+	};
+	const togglePlay = () => {
+		if (playerStatus.playing) {
+			stopPlaying();
+		} else {
+			playRecording();
+		}
+	};
+>>>>>>> abb098b6844cd433aa7585d5ae98ac7011ff1e9d
 
   function getRecording() {
     if (!recordedFile) return;
@@ -176,6 +319,7 @@ export default function Index() {
             />
           </View>
 
+<<<<<<< HEAD
           <Pressable
             style={{
               width: 50,
@@ -192,6 +336,29 @@ export default function Index() {
       </View>
     );
   }
+=======
+					<Pressable
+						onPress={generateMelody}
+						style={{
+							width: 50,
+							height: 50,
+							borderRadius: 25,
+							backgroundColor: "#3500B2",
+							justifyContent: "center",
+							alignItems: "center",
+						}}
+					>
+						<Ionicons
+							name="musical-note"
+							size={24}
+							color="#FFFFFF"
+						/>
+					</Pressable>
+				</View>
+			</View>
+		);
+	}
+>>>>>>> abb098b6844cd433aa7585d5ae98ac7011ff1e9d
 
   function clearRecording() {
     setRecordedFile(null);
