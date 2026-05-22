@@ -9,27 +9,29 @@ import {
 	useAudioPlayer,
 	useAudioPlayerStatus,
 } from "expo-audio";
-import React, { useState } from "react";
+import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
+import { File, Directory, Paths } from "expo-file-system";
 
 export default function Index() {
 	const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 	const recorderState = useAudioRecorderState(audioRecorder);
 
-	const [isProcessing, setIsProcessing] = React.useState(false);
+	const [isProcessing, setIsProcessing] = useState(false);
 	type RecordedFile = {
 		name: string;
 		duration: string;
 		file: string | null;
 	};
-	const [recordedFile, setRecordedFile] = React.useState<RecordedFile | null>(
-		null,
-	);
-	const [temperature, setTemperature] = React.useState(0.3);
+	const [recordedFile, setRecordedFile] = useState<RecordedFile | null>(null);
+	const [temperature, setTemperature] = useState(0.3);
 
 	const player = useAudioPlayer(recordedFile?.file);
 	const playerStatus = useAudioPlayerStatus(player);
+
+	// Getting Input Section
+
 	async function startRecording() {
 		try {
 			const status = await AudioModule.requestRecordingPermissionsAsync();
@@ -44,9 +46,9 @@ export default function Index() {
 			}
 		} catch (error) {}
 	}
-
 	async function stopRecording() {
 		setIsProcessing(true);
+
 		console.log("stop");
 		await audioRecorder.stop();
 
@@ -103,6 +105,76 @@ export default function Index() {
 			? `${Math.floor(minutes)}:0${seconds}`
 			: `${Math.floor(minutes)}:${seconds}`;
 	}
+	// Where the magic happens
+	async function generateMelody() {
+		if (!recordedFile?.file) {
+			alert("please record or upload audio");
+			return;
+		}
+		try {
+			let filename = recordedFile.name;
+			//to make sure it has an extension
+			if (!filename.includes(".")) filename = "recording.m4a";
+
+			// i think we could do it without this line because we know what we are sending
+			const ext = filename.split(".").pop()?.toLowerCase();
+			const mimeType = ext === "mp3" ? "audio/mpeg" : "audio/mp4";
+
+			const formData = new FormData();
+			formData.append("file", {
+				uri: recordedFile.file,
+				name: filename,
+				type: mimeType,
+			} as any);
+			// just put your ip when you run the backend
+			const response = await fetch(`${"YOUR IP"}/generate`, {
+				method: "POST",
+				body: formData,
+			});
+
+			if (!response.ok) {
+				const errorText = await response.text();
+				console.error("Server error:", response.status, errorText);
+				alert(`Server error ${response.status}`);
+				throw new Error(errorText);
+			}
+
+			// Read the echoed file bytes directly
+			const responseBuffer = await response.arrayBuffer();
+			const bytes = new Uint8Array(responseBuffer);
+
+			// create directory if it deosnt exist
+
+			const dir = new Directory(Paths.cache, "generated-melodies");
+			if (!dir.exists) {
+				dir.create();
+			}
+			// here just creating the file and putting it in the directory
+			const timestamp = Date.now();
+			const uniqueName = `melody-${timestamp}.mid`;
+
+			const outputFile = new File(
+				Paths.cache,
+				` generated-melodies/${uniqueName}`,
+			);
+			outputFile.create();
+			outputFile.write(bytes);
+
+			setRecordedFile({
+				name: "generated-melody.mid",
+				duration: "0",
+				file: outputFile.uri,
+			});
+		} catch (error) {
+			console.error("Generation error:", error);
+			alert(
+				"Failed: " +
+					(error instanceof Error ? error.message : String(error)),
+			);
+		}
+	}
+
+	// Player Section
 	const playRecording = () => {
 		try {
 			if (playerStatus.currentTime == playerStatus.duration)
@@ -181,6 +253,7 @@ export default function Index() {
 					</View>
 
 					<Pressable
+						onPress={generateMelody}
 						style={{
 							width: 50,
 							height: 50,
