@@ -40,7 +40,7 @@ def upload_file():
             processed_input = process_input(input_path.name)
             mg = MelodyGenerator()
             seed = processed_input
-            melody = mg.generate_melody(seed, 250, SEQUENCE_LENGTH, 0.8)
+            melody = mg.generate_melody(seed, 100, SEQUENCE_LENGTH, 0.8)
             mg.save_melody(melody, file_name=output_path.name)
 
             # as_attachment=True forces the browser to download the file

@@ -9,8 +9,5 @@ file-dataset.txt
 mapping.json
 demo-1.mp3
 
-# Ignore the final model
-model.weights.h5
-
 # Ignore the generated file
 generated.mid
