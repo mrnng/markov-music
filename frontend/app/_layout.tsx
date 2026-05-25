@@ -3,7 +3,7 @@ import {
   Inter_700Bold,
   useFonts,
 } from "@expo-google-fonts/inter";
-import { Link, Stack } from "expo-router";
+import { Stack } from "expo-router";
 import { Pressable, Text } from "react-native";
 
 export default function RootLayout() {
@@ -13,7 +13,7 @@ export default function RootLayout() {
   });
 
   if (!fontsLoaded) {
-    return <Text>Loading...</Text>;
+    return <Text>Loading application...</Text>;
   }
 
   return (
@@ -26,31 +26,6 @@ export default function RootLayout() {
         name="index"
         options={{
           title: "Markov Music",
-          headerTitleStyle: {
-            fontFamily: "Inter_700Bold",
-          },
-          headerRight: () => (
-            <Link href="/list" asChild>
-              <Pressable>
-                <Text
-                  style={{
-                    color: "black",
-                    marginRight: 10,
-                    fontFamily: "Inter_400Regular",
-                    fontSize: 18,
-                  }}
-                >
-                  List
-                </Text>
-              </Pressable>
-            </Link>
-          ),
-        }}
-      />
-      <Stack.Screen
-        name="list"
-        options={{
-          title: "List",
           headerTitleStyle: {
             fontFamily: "Inter_700Bold",
           },

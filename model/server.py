@@ -2,6 +2,7 @@ import os
 from tempfile import NamedTemporaryFile
 from flask import Flask, request, redirect, send_file
 from werkzeug.utils import secure_filename
+from midi2audio import FluidSynth
 from model.melody_generator import MelodyGenerator
 from model.input_processing import process_input
 from model.data_processing import SEQUENCE_LENGTH
@@ -32,7 +33,8 @@ def upload_file():
         
         # tempfiles prevent the processed files from being saved locally
         with NamedTemporaryFile(mode="w+b", suffix=extension) as input_path, \
-            NamedTemporaryFile(mode="w+b", suffix=".mid") as output_path:
+            NamedTemporaryFile(mode="w+b", suffix=".mid") as output_path, \
+            NamedTemporaryFile(mode="w+b", suffix=".wav") as output_audio:
 
             file.save(input_path.name)
         
@@ -40,15 +42,18 @@ def upload_file():
             processed_input = process_input(input_path.name)
             mg = MelodyGenerator()
             seed = processed_input
-            melody = mg.generate_melody(seed, 100, SEQUENCE_LENGTH, 0.8)
+            melody = mg.generate_melody(seed, 50, SEQUENCE_LENGTH, 0.3)
             mg.save_melody(melody, file_name=output_path.name)
+            fs = FluidSynth("/usr/share/sounds/sf2/default-GM.sf2")
+            fs.midi_to_audio(output_path.name, output_audio.name)
 
             # as_attachment=True forces the browser to download the file
             return send_file(
-                output_path.name,
+                output_audio.name,
                 as_attachment=True,
-                download_name="generated.mid",
-                mimetype="audio/midi"
+                download_name="generated.wav",
+                mimetype="audio/wav"
             )
     
     return { "message": "Error generating file." }
+

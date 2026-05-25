@@ -71,3 +71,9 @@ but then quantizes notes and rests into 16th steps.
 [04/05/2026 - 10:11] -AA
 The Markov chain model is insufficient to recognize and produce musicality.
 For this reason, we have begun the migration to an RNN-LSTM architecture.
+
+[25/05/2026 - 21:08] -AA
+To run the server, we need to use `flask --app server run --host=0.0.0.0`
+
+The server is now dependant on fluidsynth to convert MIDI to WAV, which needs to
+be downloaded locally, and may complicate deployment.
