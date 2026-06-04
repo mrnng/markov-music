@@ -16,7 +16,7 @@ The project is developed as part of a course assignment and focuses on:
 
 - Input: an audio file in a supported format, converted into note sequences
 using Spotify's Basic Pitch.
-- Output: predicted or generated musical phrases a playable MP3 file.
+- Output: predicted or generated musical phrases a playable WAV file.
 - Training using the [ESAC](https://www.esac-data.org/)
 [European folk music](https://kern.humdrum.org/cgi-bin/browse?l=essen/europa)
 dataset
