@@ -6,7 +6,6 @@ __pycache__/
 dataset/
 europa/
 file-dataset.txt
-mapping.json
 demo-1.mp3
 
 # Ignore the generated file
