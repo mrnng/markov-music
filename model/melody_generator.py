@@ -1,7 +1,7 @@
 import json
 import numpy as np
 import music21 as m21
-import tensorflow.keras as keras
+import keras as keras
 from model.data_processing import SEQUENCE_LENGTH, MAPPING_PATH
 from model.training import SAVE_MODEL_PATH
 from model.training import OUTPUT_UNITS, NUM_UNITS, LOSS, LEARNING_RATE

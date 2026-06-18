@@ -2,7 +2,7 @@ import os
 import json
 import music21 as m21
 import numpy as np
-import tensorflow.keras as keras
+import keras as keras
 
 KERN_DATASET_PATH = "europa/"
 SAVE_DIR = "dataset"

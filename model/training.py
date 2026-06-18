@@ -1,5 +1,5 @@
 import json
-import tensorflow.keras as keras
+import keras as keras
 from model.data_processing import generate_training_sequences
 from model.data_processing import SEQUENCE_LENGTH, SINGLE_FILE_DATASET_PATH, MAPPING_PATH
 
