@@ -9,13 +9,19 @@ from basic_pitch.inference import predict
 ALLOWED_DURATIONS = [2**i for i in range(-4, 3)]
 
 def estimate_key(midi_data):
-    with tempfile.NamedTemporaryFile(suffix=".mid") as temp_midi:
+    
+    temp_midi = tempfile.NamedTemporaryFile(delete=False, suffix=".mid")
+    temp_midi.close()  
+
+    try:
         midi_data.write(temp_midi.name)
         score = music21.converter.parse(temp_midi.name)
-
-    key = score.analyze('key')
-
-    return f"{key.tonic.name}-{key.mode}"
+        key = score.analyze('key')
+        return f"{key.tonic.name}-{key.mode}"
+        
+    finally:
+        if os.path.exists(temp_midi.name):
+            os.remove(temp_midi.name)
 
 def get_midi_data(audio_path):
     _, midi_data, _ = predict(audio_path)

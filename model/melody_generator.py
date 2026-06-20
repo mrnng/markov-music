@@ -17,7 +17,20 @@ class MelodyGenerator:
             learning_rate=LEARNING_RATE
         )
 
-        self.model.load_weights(model_path)
+        import h5py
+        with h5py.File(model_path, 'r') as f:
+            # Extract only the actual structural layers, ignoring optimizer states
+            if 'model_weights' in f:
+                weight_source = f['model_weights']
+            else:
+                weight_source = f
+                
+            for layer in self.model.layers:
+                if layer.name in weight_source:
+                    g = weight_source[layer.name]
+                    weights = [g[p][()] for p in g.attrs['weight_names']]
+                    if len(weights) == len(layer.get_weights()):
+                        layer.set_weights(weights)
         
         with open(MAPPING_PATH, "r") as f:
             self._mapping = json.load(f)
