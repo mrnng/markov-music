@@ -20,6 +20,7 @@ def upload_file():
             print("No file uploaded.")
             return redirect(request.url)
         file = request.files["file"]
+        temperature = request.form.get("temperature", default=0.3, type=float)
         if file.filename == '':
             print("No file uploaded.")
             return redirect(request.url)
@@ -42,23 +43,10 @@ def upload_file():
             processed_input = process_input(input_path.name)
             mg = MelodyGenerator()
             seed = processed_input
-            melody = mg.generate_melody(seed, 50, SEQUENCE_LENGTH, 0.3)
+            print(temperature)
+            melody = mg.generate_melody(seed, 50, SEQUENCE_LENGTH, temperature)
             mg.save_melody(melody, file_name=output_path.name)
 
-            import platform
-            import midi2audio
-            
-            if platform.system() == "Windows":
-                # Points to the SoundFont file you downloaded into your model folder
-                soundfont_path = "model/default-GM.sf2"
-                
-                # Forces the midi2audio tool to use your Windows fluidsynth application
-                midi2audio.FLUIDSYNTH_CMD = r"C:\Users\yehya\projects\myenv\project\markov-music\fluidsynth\bin\fluidsynth.exe"
-                fs = FluidSynth(soundfont_path)
-            else:
-                # Keeps your friend's original Linux system settings intact
-                soundfont_path = "/usr/share/sounds/sf2/default-GM.sf2"
-                fs = FluidSynth(soundfont_path)
             fs = FluidSynth("/usr/share/sounds/sf2/default-GM.sf2")
             fs.midi_to_audio(output_path.name, output_audio.name)
 

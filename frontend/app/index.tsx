@@ -139,6 +139,8 @@ export default function Index() {
         type: mimeType,
       } as any);
 
+      formData.append("temperature", temperature.toString());
+
       // Sending request to the Flask server
       // Using the machine's local IP address so physical devices on the same network can connect
       const response = await fetch("http://192.168.1.244:5000/generate", {
@@ -260,13 +262,13 @@ export default function Index() {
                 fontSize: 13,
               }}
             >
-              Generation Temperature: {temperature.toFixed(1)}
+              Generation Creativity: {temperature.toFixed(1)}
             </Text>
 
             <Slider
               style={{ width: "100%", height: 50 }}
               minimumValue={0.1}
-              maximumValue={0.9}
+              maximumValue={10}
               step={0.1}
               value={temperature}
               onValueChange={(temp) => setTemperature(temp)}
@@ -359,7 +361,7 @@ export default function Index() {
           {recorderState.isRecording
             ? "Recording in progress..."
             : recordedFile
-              ? "Configure the model temperature and generate your musical phrase."
+              ? "Configure the creativity and generate your musical phrase."
               : "Record or upload a musical phrase to begin the generation process."}
         </Text>
       </View>
